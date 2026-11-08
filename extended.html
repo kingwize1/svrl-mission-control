@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SVRL Mission Control – Extended</title>
+<style>
+  :root {
+    --bg: #0b1220; --panel: #141c2e; --accent: #00e5a8; --warn: #ff6b35;
+    --danger: #ff3b5c; --ok: #00e5a8; --text: #e8eef7; --muted: #8b9bb4;
+    --border: #1e2a44;
+  }
+  [data-theme="high"] {
+    --bg: #000; --panel: #111; --accent: #0f0; --text: #0f0; --muted: #0a0; --border: #0f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; padding: 1.2rem; transition: all 0.3s; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.3rem; }
+  .subtitle { color: var(--muted); margin-bottom: 1.2rem; font-size: 0.85rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem; margin-bottom: 1.2rem; }
+  .panel { background: var(--panel); border-radius: 10px; padding: 1rem; border: 1px solid var(--border); }
+  .panel h2 { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .status { font-size: 1.5rem; font-weight: 700; }
+  .status.ok { color: var(--ok); }
+  .status.blocked { color: var(--danger); }
+  .metric { font-size: 1.6rem; font-weight: 600; }
+  .log { background: #0a101c; border-radius: 8px; height: 260px; overflow-y: auto; padding: 0.8rem; font-family: ui-monospace, monospace; font-size: 0.75rem; line-height: 1.5; border: 1px solid var(--border); }
+  .log-entry { margin-bottom: 0.35rem; }
+  .log-entry .t { color: var(--muted); }
+  .log-entry.block { color: var(--danger); }
+  .log-entry.ok { color: var(--ok); }
+  .log-entry.warn { color: var(--warn); }
+  button { background: var(--accent); color: #04120e; border: none; padding: 0.55rem 1.1rem; border-radius: 6px; font-weight: 600; cursor: pointer; margin-right: 0.5rem; margin-top: 0.6rem; }
+  button.secondary { background: var(--border); color: var(--text); }
+  .legend { display: flex; flex-wrap: wrap; gap: 1.2rem; margin-top: 1rem; font-size: 0.78rem; color: var(--muted); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.3rem; }
+</style>
+</head>
+<body>
+  <h1>SVRL Mission Control – Extended Defense View</h1>
+  <p class="subtitle">Zero-Trust · Deterministic Gate · Air-Gapped Quorum · Immutable Audit</p>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Attack Surface</h2>
+      <div class="status blocked" id="attackStatus">IDLE</div>
+    </div>
+    <div class="panel">
+      <h2>Deterministic Gate</h2>
+      <div class="status ok" id="gateStatus">READY</div>
+    </div>
+    <div class="panel">
+      <h2>Cold Wallet Quorum</h2>
+      <div class="metric" id="quorum">0 / 3</div>
+    </div>
+    <div class="panel">
+      <h2>Evidence Quality</h2>
+      <div class="metric" id="evidence">—</div>
+    </div>
+    <div class="panel">
+      <h2>Physical Seals</h2>
+      <div class="status ok" id="seals">INTACT</div>
+    </div>
+    <div class="panel">
+      <h2>Audit Depth</h2>
+      <div class="metric" id="audit">0 entries</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Live Event Log</h2>
+    <div class="log" id="log"></div>
+    <button onclick="runAttackSim()">Simulate Remote Attempt</button>
+    <button class="secondary" onclick="reset()">Reset</button>
+    <button class="secondary" onclick="toggleTheme()">Toggle Theme</button>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--danger)"></span> Attack path terminated</span>
+    <span><span class="dot" style="background:var(--ok)"></span> Policy / air-gap enforced</span>
+    <span><span class="dot" style="background:var(--warn)"></span> Single point of failure eliminated</span>
+  </div>
+
+<script>
+const logEl = document.getElementById('log');
+let auditCount = 0;
+
+function addLog(msg, cls='') {
+  const t = new Date().toISOString().substr(11,8);
+  logEl.innerHTML += `<div class="log-entry ${cls}"><span class="t">[${t}]</span> ${msg}</div>`;
+  logEl.scrollTop = logEl.scrollHeight;
+  auditCount++;
+  document.getElementById('audit').textContent = auditCount + ' entries';
+}
+
+function runAttackSim() {
+  document.getElementById('attackStatus').textContent = 'ATTEMPTING…';
+  document.getElementById('attackStatus').className = 'status blocked';
+  document.getElementById('gateStatus').textContent = 'EVALUATING';
+  document.getElementById('quorum').textContent = '0 / 3';
+  document.getElementById('evidence').textContent = 'LOW';
+  addLog('External request received – crafted verification / transaction pattern', 'warn');
+  
+  setTimeout(() => {
+    addLog('Gate: capability OK · evidence quality insufficient · policy violation detected', 'block');
+    document.getElementById('gateStatus').textContent = 'REFUSE';
+    document.getElementById('gateStatus').className = 'status ok';
+  }, 900);
+  
+  setTimeout(() => {
+    addLog('Cold-wallet layer: no physical device signatures present · quorum 0/3', 'block');
+    document.getElementById('attackStatus').textContent = 'BLOCKED';
+    document.getElementById('seals').textContent = 'INTACT';
+    addLog('Outcome: value movement prevented · full evidence package written to audit log', 'ok');
+  }, 1800);
+}
+
+function reset() {
+  logEl.innerHTML = '';
+  auditCount = 0;
+  document.getElementById('attackStatus').textContent = 'IDLE';
+  document.getElementById('attackStatus').className = 'status ok';
+  document.getElementById('gateStatus').textContent = 'READY';
+  document.getElementById('gateStatus').className = 'status ok';
+  document.getElementById('quorum').textContent = '0 / 3';
+  document.getElementById('evidence').textContent = '—';
+  document.getElementById('seals').textContent = 'INTACT';
+  document.getElementById('audit').textContent = '0 entries';
+  addLog('System reset · zero-trust posture active · all seals verified', 'ok');
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme') === 'high' ? '' : 'high');
+}
+
+reset();
+</script>
+</body>
+</html>

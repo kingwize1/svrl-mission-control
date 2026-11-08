@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVRL Mission Control – Enterprise Cold-Wallet Defense</title>
+<style>
+  :root {
+    --bg: #0b1220; --panel: #141c2e; --panel-alt: #1a2332; --accent: #00e5a8; --warn: #ff6b35;
+    --danger: #ff3b5c; --ok: #00e5a8; --text: #e8eef7; --muted: #8b9bb4;
+    --border: #1e2a44;
+  }
+  [data-theme="high"] {
+    --bg: #000; --panel: #0a0a0a; --panel-alt: #111; --accent: #0f0; --ok: #0f0;
+    --text: #0f0; --muted: #0a0; --border: #0f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; padding: 1.5rem; max-width: 1280px; margin: 0 auto; transition: all 0.3s; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.3rem; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; }
+  .section-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 1.5rem 0 0.75rem; font-weight: 700; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 0.9rem; margin-bottom: 1.2rem; }
+  .panel { background: var(--panel); border-radius: 10px; padding: 1rem; border: 1px solid var(--border); }
+  .panel h2 { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.45rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .status { font-size: 1.45rem; font-weight: 700; }
+  .status.ok { color: var(--ok); }
+  .status.blocked { color: var(--danger); }
+  .status.warn { color: var(--warn); }
+  .metric { font-size: 1.55rem; font-weight: 600; }
+  .sub-note { margin-top: 0.3rem; font-size: 0.78rem; color: var(--muted); }
+
+  /* Interactive 4-Zone Architecture Pipeline */
+  .arch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem; }
+  .zone { background: var(--panel-alt); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .zone.gate-zone, .zone.cold-zone { border-color: rgba(0, 229, 168, 0.4); }
+  .zone-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 0.2rem; }
+  .node { background: #0a101c; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.65rem; font-size: 0.8rem; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; }
+  .node.active-ok { border-color: var(--ok); background: rgba(0, 229, 168, 0.12); box-shadow: 0 0 10px rgba(0, 229, 168, 0.2); }
+  .node.active-warn { border-color: var(--warn); background: rgba(255, 107, 53, 0.15); }
+  .node.active-block { border-color: var(--danger); background: rgba(255, 59, 92, 0.22); box-shadow: 0 0 10px rgba(255, 59, 92, 0.25); }
+  .badge { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600; background: var(--border); color: var(--muted); }
+  .node.active-ok .badge { background: var(--ok); color: #04120e; }
+  .node.active-block .badge { background: var(--danger); color: #fff; }
+  .node.active-warn .badge { background: var(--warn); color: #04120e; }
+
+  .device-row { display: flex; gap: 0.4rem; }
+  .device-btn { flex: 1; background: #0a101c; border: 1px solid var(--border); color: var(--muted); padding: 0.45rem 0.3rem; border-radius: 6px; font-size: 0.75rem; cursor: pointer; text-align: center; margin: 0; }
+  .device-btn.signed { border-color: var(--ok); background: rgba(0, 229, 168, 0.15); color: var(--ok); }
+
+  .log { background: #0a101c; border-radius: 8px; height: 240px; overflow-y: auto; padding: 0.85rem; font-family: ui-monospace, monospace; font-size: 0.78rem; line-height: 1.5; border: 1px solid var(--border); }
+  .log-entry { margin-bottom: 0.35rem; }
+  .log-entry .t { color: var(--muted); }
+  .log-entry.block { color: var(--danger); }
+  .log-entry.ok { color: var(--ok); }
+  .log-entry.warn { color: var(--warn); }
+
+  .btn-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+  button { background: var(--accent); color: #04120e; border: none; padding: 0.58rem 1.1rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.82rem; }
+  button.warn-btn { background: var(--warn); color: #0b1220; }
+  button.secondary { background: var(--border); color: var(--text); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 1.4rem; margin-top: 1rem; font-size: 0.8rem; color: var(--muted); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.35rem; }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 0.75rem; }
+  .gallery-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .gallery-card img { width: 100%; height: 220px; object-fit: cover; display: block; border-bottom: 1px solid var(--border); }
+  .gallery-card .caption { padding: 0.75rem 0.9rem; font-size: 0.82rem; color: var(--muted); }
+  .gallery-card .caption strong { color: var(--text); display: block; margin-bottom: 0.2rem; }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>SVRL Mission Control – Extended Defense View</h1>
+      <p class="subtitle">Zero-Trust Environment · Deterministic Gate · Air-Gapped HC² Quorum · Immutable Audit · VFOX Island Trust Posture</p>
+    </div>
+    <button class="secondary" onclick="toggleTheme()">Toggle High-Contrast Theme</button>
+  </header>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Attack Surface</h2>
+      <div class="status ok" id="attackStatus">IDLE</div>
+      <p class="sub-note">Remote software / spoof attempts</p>
+    </div>
+    <div class="panel">
+      <h2>Deterministic Gate</h2>
+      <div class="status ok" id="gateStatus">READY</div>
+      <p class="sub-note">Evidence / policy / air-gap check</p>
+    </div>
+    <div class="panel">
+      <h2>Cold Wallet Quorum</h2>
+      <div class="metric" id="quorum">0 / 3</div>
+      <p class="sub-note">Physical device signatures required</p>
+    </div>
+    <div class="panel">
+      <h2>Evidence Quality</h2>
+      <div class="metric" id="evidence">—</div>
+      <p class="sub-note">Cryptographic &amp; policy provenance</p>
+    </div>
+    <div class="panel">
+      <h2>Physical Seals</h2>
+      <div class="status ok" id="seals">INTACT</div>
+      <p class="sub-note">Tamper-evident HC² hardware</p>
+    </div>
+    <div class="panel">
+      <h2>Audit Depth</h2>
+      <div class="metric" id="audit">0 entries</div>
+      <p class="sub-note">Independently verifiable log</p>
+    </div>
+  </div>
+
+  <div class="section-title">Deterministic Gate &amp; Air-Gapped Pipeline</div>
+  <div class="arch-grid">
+    <div class="zone">
+      <div class="zone-title">1. External / Untrusted Zone</div>
+      <div class="node" id="node-A"><span>Incoming Tx / Verification Req</span><span class="badge" id="badge-A">IDLE</span></div>
+      <p class="sub-note" style="margin-top:auto">Everything starts in the untrusted zone. Remote paths never bypass the gate.</p>
+    </div>
+
+    <div class="zone gate-zone">
+      <div class="zone-title">2. Deterministic Gate (SVRL)</div>
+      <div class="node" id="node-B"><span>Capability Check</span><span class="badge" id="badge-B">WAIT</span></div>
+      <div class="node" id="node-C"><span>Evidence Quality &amp; Policy Eval</span><span class="badge" id="badge-C">WAIT</span></div>
+      <div class="node" id="node-D"><span>Runtime / Uncertainty &amp; Risk</span><span class="badge" id="badge-D">WAIT</span></div>
+      <div class="node" id="node-E"><span>Gate Decision</span><span class="badge" id="badge-E">FAIL-CLOSED</span></div>
+    </div>
+
+    <div class="zone cold-zone">
+      <div class="zone-title">3. Air-Gapped Cold Storage (HC²)</div>
+      <div class="device-row">
+        <button class="device-btn" id="dev-1" onclick="toggleDevice(0)">Device 1<br/>Sealed</button>
+        <button class="device-btn" id="dev-2" onclick="toggleDevice(1)">Device 2<br/>Sealed</button>
+        <button class="device-btn" id="dev-3" onclick="toggleDevice(2)">Device 3<br/>Sealed</button>
+      </div>
+      <div class="node" id="node-K"><span>Quorum Check (3-of-3)</span><span class="badge" id="badge-K">0/3</span></div>
+      <div class="node" id="node-M"><span>Offline Signature Output</span><span class="badge" id="badge-M">LOCKED</span></div>
+    </div>
+
+    <div class="zone">
+      <div class="zone-title">4. Immutable Audit Layer</div>
+      <div class="node" id="node-N"><span>Evidence + Decision Record</span><span class="badge" id="badge-N">SYNCED</span></div>
+      <div class="node" id="node-O"><span>Timestamped Verifiable Log</span><span class="badge" id="badge-O">HASHED</span></div>
+      <p class="sub-note" style="margin-top:auto">Every outcome (allow or refuse) is permanently logged.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Live Event Log</h2>
+    <div class="log" id="log"></div>
+    <div class="btn-group">
+      <button onclick="runAttackSim()">Simulate Remote Exploit Attempt</button>
+      <button class="warn-btn" onclick="runQuorumSim()">Simulate Validated Request (Test Quorum)</button>
+      <button class="secondary" onclick="reset()">Reset</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--danger)"></span> Attack path terminated</span>
+    <span><span class="dot" style="background:var(--ok)"></span> Policy / air-gap enforced</span>
+    <span><span class="dot" style="background:var(--warn)"></span> Single point of failure eliminated</span>
+  </div>
+
+  <div class="section-title">Hardware &amp; Architecture Visuals</div>
+  <div class="gallery">
+    <div class="gallery-card">
+      <img src="assets/mission-control.jpg" alt="SVRL Mission Control Room">
+      <div class="caption">
+        <strong>Mission Control – Isolated Air-Gap Posture</strong>
+        Six tamper-evident sealed HC² devices with fail-closed REFUSE (Quorum 0/3) enforced on the primary defense console.
+      </div>
+    </div>
+    <div class="gallery-card">
+      <img src="assets/architecture-shield.jpg" alt="Deterministic Gate and Quorum Shield">
+      <div class="caption">
+        <strong>Deterministic Gate + Quorum Shield</strong>
+        Isolated Cold Wallet Nodes (1–3) backed by the Deterministic Gate and an immutable, verifiable, timestamped audit log.
+      </div>
+    </div>
+    <div class="gallery-card">
+      <img src="assets/hc2-device-rejected.jpg" alt="HC2 Device Rejecting Transaction">
+      <div class="caption">
+        <strong>HC² Hardware Enforcement</strong>
+        Physical unit displaying "TRANSACTION REJECTED – NO OFFLINE SIGNATURE" with intact holographic USB security seal.
+      </div>
+    </div>
+  </div>
+
+<script>
+const logEl = document.getElementById('log');
+let auditCount = 0;
+let devices = [false, false, false];
+
+function addLog(msg, cls='') {
+  const t = new Date().toISOString().substr(11,8);
+  logEl.innerHTML += `<div class="log-entry ${cls}"><span class="t">[${t}]</span> ${msg}</div>`;
+  logEl.scrollTop = logEl.scrollHeight;
+  auditCount++;
+  document.getElementById('audit').textContent = auditCount + ' entries';
+}
+
+function setNode(id, cls, badgeText) {
+  const el = document.getElementById(`node-${id}`);
+  const badge = document.getElementById(`badge-${id}`);
+  if (!el || !badge) return;
+  el.className = `node ${cls}`;
+  if (badgeText !== undefined) badge.textContent = badgeText;
+}
+
+function clearPipelineNodes() {
+  const count = devices.filter(Boolean).length;
+  ['A','B','C','D','E','K','M','N','O'].forEach(id => {
+    setNode(id, '', id === 'K' ? `${count}/3` : 'WAIT');
+  });
+}
+
+function toggleDevice(idx) {
+  devices[idx] = !devices[idx];
+  const btn = document.getElementById(`dev-${idx+1}`);
+  btn.className = devices[idx] ? 'device-btn signed' : 'device-btn';
+  btn.innerHTML = `Device ${idx+1}<br/>${devices[idx] ? 'SIGNED ✓' : 'Sealed'}`;
+  const count = devices.filter(Boolean).length;
+  document.getElementById('quorum').textContent = `${count} / 3`;
+  document.getElementById('badge-K').textContent = `${count}/3`;
+  document.getElementById('seals').textContent = count > 0 ? `${3-count}/3 SEALED` : 'INTACT';
+  addLog(`Air-Gap HC² Device #${idx+1}: ${devices[idx] ? 'Offline physical signature provided' : 'Tamper-evident seal restored'}`, devices[idx] ? 'ok' : 'warn');
+}
+
+function runAttackSim() {
+  clearPipelineNodes();
+  document.getElementById('attackStatus').textContent = 'ATTEMPTING…';
+  document.getElementById('attackStatus').className = 'status blocked';
+  document.getElementById('gateStatus').textContent = 'EVALUATING';
+  document.getElementById('quorum').textContent = '0 / 3';
+  document.getElementById('evidence').textContent = 'LOW';
+  setNode('A', 'active-warn', 'UNTRUSTED');
+  addLog('External request received – crafted verification / transaction pattern (cached-verification / unbacked-value)', 'warn');
+
+  setTimeout(() => {
+    setNode('B', 'active-ok', 'OK');
+    setNode('C', 'active-block', 'FAIL');
+    setNode('D', 'active-block', 'VIOLATION');
+    setNode('E', 'active-block', 'REFUSE');
+    addLog('Gate: capability OK · evidence quality insufficient · policy violation detected', 'block');
+    document.getElementById('gateStatus').textContent = 'REFUSE';
+    document.getElementById('gateStatus').className = 'status ok';
+  }, 850);
+
+  setTimeout(() => {
+    setNode('K', 'active-block', '0/3');
+    setNode('M', 'active-block', 'ISOLATED');
+    setNode('N', 'active-ok', 'LOGGED');
+    setNode('O', 'active-ok', 'VERIFIED');
+    addLog('Cold-wallet layer: no physical device signatures present · quorum 0/3 · transaction rejected', 'block');
+    document.getElementById('attackStatus').textContent = 'BLOCKED';
+    document.getElementById('seals').textContent = 'INTACT';
+    addLog('Outcome: value movement prevented · full evidence package written to immutable audit log', 'ok');
+  }, 1700);
+}
+
+function runQuorumSim() {
+  clearPipelineNodes();
+  const count = devices.filter(Boolean).length;
+  document.getElementById('attackStatus').textContent = 'VALIDATING';
+  document.getElementById('attackStatus').className = 'status ok';
+  document.getElementById('gateStatus').textContent = 'EVALUATING';
+  document.getElementById('evidence').textContent = 'HIGH';
+  setNode('A', 'active-ok', 'RECEIVED');
+  addLog('External Zone: Structured request received with valid cryptographic evidence package', 'ok');
+
+  setTimeout(() => {
+    setNode('B', 'active-ok', 'PASS');
+    setNode('C', 'active-ok', 'PASS');
+    setNode('D', 'active-ok', 'PASS');
+    setNode('E', 'active-ok', 'ALLOW');
+    document.getElementById('gateStatus').textContent = 'ALLOW';
+    document.getElementById('gateStatus').className = 'status ok';
+    addLog('Gate: capability, evidence quality & runtime risk checks passed → forwarding to Air-Gapped Cold Layer', 'ok');
+  }, 850);
+
+  setTimeout(() => {
+    setNode('N', 'active-ok', 'LOGGED');
+    setNode('O', 'active-ok', 'VERIFIED');
+    if (count < 3) {
+      setNode('K', 'active-block', `${count}/3 FAIL`);
+      setNode('M', 'active-block', 'REJECT');
+      document.getElementById('attackStatus').textContent = 'REJECTED';
+      document.getElementById('attackStatus').className = 'status blocked';
+      addLog(`Cold-wallet layer: Quorum ${count}/3 insufficient (mandatory 3-of-3 offline signatures required) → TRANSACTION REJECTED`, 'block');
+    } else {
+      setNode('K', 'active-ok', '3/3 MET');
+      setNode('M', 'active-ok', 'SIGNED');
+      document.getElementById('attackStatus').textContent = 'AUTHORIZED';
+      document.getElementById('attackStatus').className = 'status ok';
+      addLog('Cold-wallet layer: 3-of-3 physical HC² signatures verified → Offline signatures collected & logged', 'ok');
+    }
+  }, 1700);
+}
+
+function reset() {
+  logEl.innerHTML = '';
+  auditCount = 0;
+  devices = [false, false, false];
+  [0,1,2].forEach(i => {
+    const btn = document.getElementById(`dev-${i+1}`);
+    if (btn) {
+      btn.className = 'device-btn';
+      btn.innerHTML = `Device ${i+1}<br/>Sealed`;
+    }
+  });
+  clearPipelineNodes();
+  setNode('A', '', 'IDLE');
+  setNode('E', '', 'FAIL-CLOSED');
+  setNode('M', '', 'LOCKED');
+  document.getElementById('attackStatus').textContent = 'IDLE';
+  document.getElementById('attackStatus').className = 'status ok';
+  document.getElementById('gateStatus').textContent = 'READY';
+  document.getElementById('gateStatus').className = 'status ok';
+  document.getElementById('quorum').textContent = '0 / 3';
+  document.getElementById('evidence').textContent = '—';
+  document.getElementById('seals').textContent = 'INTACT';
+  document.getElementById('audit').textContent = '0 entries';
+  addLog('System reset · zero-trust posture active · all seals verified', 'ok');
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme') === 'high' ? '' : 'high');
+}
+
+reset();
+</script>
+</body>
+</html>
